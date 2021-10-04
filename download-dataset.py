@@ -6,7 +6,7 @@ import sys
 import shutil
 import argparse
 from typing import Callable
-from progressbar.bar import ProgressBar
+from progressbar.bar import DataTransferBar, ProgressBar
 import requests
 from progressbar import progressbar
 from multiprocessing.pool import ThreadPool
@@ -27,7 +27,7 @@ def expects(prompt: str, expected: list[str]) -> str:
     _i = None
     while _i is None or _i not in expected:
         if _i is not None:
-            print("Sorry, should be one one [%s]" % '/'.join(expected))
+            print("Sorry, should be one of [%s]" % '/'.join(expected))
         _i = input("%s [%s] : " % (prompt, '/'.join(expected)))
 
     print('Your choice :', _i)
@@ -73,7 +73,7 @@ def extract_all_links(url_site) -> list[str]:
 
 def filter_links(url: str, only=''):
     _filter = only + (r'.*' if only != '' else '')
-    regex = re.compile(rf'.*{_filter}\.7z$')
+    regex = re.compile(rf'^.*{_filter}\.7z.*$')
 
     all_links = extract_all_links(url)
     all_links = [i for i in all_links if regex.match(i)]
@@ -89,7 +89,7 @@ def gen_url_downloader(out_dir: str) -> Callable[[str], str]:
         filename = url[file_name_start_pos:]
         out_file = os.path.join(out_dir, filename)
 
-        print('> 📡 Downloading %s -> %s' % (url, out_dir))
+        print('> ⬇ 🗺 %s' % url)
 
         # download
         r = requests.get(url, stream=True)
@@ -97,17 +97,19 @@ def gen_url_downloader(out_dir: str) -> Callable[[str], str]:
         if r.status_code == requests.codes.ok:
             _file_size = int(r.headers.get('Content-Length'))
             _chunk_size = 2**16
-            print("- File size : %s Mb" % (_file_size/1024))
+            print("- 📥 🗺 %s : %s bytes" % (filename, _file_size))
             with open(out_file, 'wb') as f:
                 _i = 0
-                _bar = ProgressBar(max_value=_file_size)
+                _bar = DataTransferBar(max_value=_file_size)
+                _bar.start()
                 for data in r.iter_content(chunk_size=_chunk_size):
                     _i += len(data)
                     f.write(data)
                     _bar.update(_i)
+                _bar.finish()
         else:
-            return '<' + filename + " téléchargement en échec"
-        return '<' + filename + " téléchargement réussi"
+            return "< ❌ %s failed" % filename
+        return "< 🎉 %s success (%s bytes) " % (filename, _i)
     return download_url
 
 
@@ -119,6 +121,8 @@ if __name__ == '__main__':
                          help="A regular expression to filter out some links (SQL, SHP, GPK for example) (default: SHP)")
     _parser.add_argument('--output', type=str, nargs='?', default='topo-express',
                          help="The output directory. Will be created if it does not exist yet (default: topo-express)")
+    _parser.add_argument('--threads', type=int, nargs='?', default=1,
+                         help="Number of simulteanous downloads (default: 1)")
 
     _args = _parser.parse_args()
     if _args.filter != '':
@@ -136,10 +140,23 @@ if __name__ == '__main__':
         sys.exit()
 
     _out_dir: str = check_output(_args.output)
+    _threads: int = _args.threads
 
     print("✅ OK, let's Download...")
 
-    # results = ThreadPool(5).imap_unordered()
-    _downloader = gen_url_downloader(_out_dir)
-    for _i in _found_links:
-        print(_downloader(_i))
+    # 1. regular
+    #_downloader = gen_url_downloader(_out_dir)
+    # for _i in _found_links:
+    #    print(_downloader(_i))
+    # 2. Parallel
+    _pool = ThreadPool(_threads)
+    results = _pool.imap_unordered(
+        gen_url_downloader(_out_dir), _found_links)
+
+    for r in results:
+        sys.stdout.flush()
+        print(r)
+    _pool.close()
+    _pool.join()
+
+    print("🎉 All task done")
