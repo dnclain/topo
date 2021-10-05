@@ -117,6 +117,11 @@ func (a App) findByBboxSplit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) initializeRoutes() {
+	// [STATIC]
+	// embedded
+	//a.Router.PathPrefix("/viewer/").Handler(http.StripPrefix("/static/", http.FileServer(assetFS()))).Methods("GET")
+	a.Router.PathPrefix("/viewer/").Handler(http.StripPrefix("/viewer/", http.FileServer(http.Dir("./views")))).Methods("GET")
+
 	a.Router.HandleFunc("/building/{id:"+iduRegex+"}", a.getById).Methods("GET")
 
 	a.Router.HandleFunc("/building", a.findByPosition).Queries(

@@ -83,7 +83,7 @@ func getGeoJSON(db *sql.DB, query string, args ...interface{}) (*geojson.Feature
 			return nil, err
 		}
 		f := geojson.NewFeature(a.geometry)
-		// 🥲 why no ternary operators in go, snif
+		// 🥲 why no ternary operator OR 'if expression' in go, snif 🥲
 		// id
 		if a.id.Valid {
 			_val, _ := a.id.Value()
