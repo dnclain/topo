@@ -8,13 +8,14 @@ import (
 	"strings"
 )
 
-const cSEP string = "|"
+// cPARAM is the default string formatter parameter.
 const cPARAM string = "{}"
 
 // -----------------
 // Logger Goodies 🥲
 // -----------------
 
+// formatLog simplifies the use of a string formatter.
 func formatLog(message string, ps ...interface{}) string {
 	pl := len(ps)
 	arr := strings.Split(message, cPARAM)
@@ -38,17 +39,20 @@ func formatLog(message string, ps ...interface{}) string {
 // Http Tmux Goodies 😜
 // --------------------
 
+// statusWriter wraps an http response.
 type statusWriter struct {
 	http.ResponseWriter
 	status int
 	length int
 }
 
+// WriteHeader wraps the header writer
 func (w *statusWriter) WriteHeader(status int) {
 	w.status = status
 	w.ResponseWriter.WriteHeader(status)
 }
 
+// WriteHeader wraps the response writer
 func (w *statusWriter) Write(b []byte) (int, error) {
 	if w.status == 0 {
 		w.status = 200
@@ -94,7 +98,7 @@ func LogMw(next http.Handler) http.Handler {
 	})
 }
 
-// Global
+// Global connecion pool
 var DB *sql.DB
 
 // TrMw :
