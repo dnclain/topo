@@ -122,25 +122,25 @@ func (a *App) initializeRoutes() {
 	//a.Router.PathPrefix("/viewer/").Handler(http.StripPrefix("/static/", http.FileServer(assetFS()))).Methods("GET")
 	a.Router.PathPrefix("/viewer/").Handler(http.StripPrefix("/viewer/", http.FileServer(http.Dir("./views")))).Methods("GET")
 
-	a.Router.HandleFunc("/building/{id:"+iduRegex+"}", a.getById).Methods("GET")
+	a.Router.Handle("/building/{id:"+iduRegex+"}", Use(LogMw).ThenFunc(a.getById)).Methods("GET")
 
-	a.Router.HandleFunc("/building", a.findByPosition).Queries(
+	a.Router.Handle("/building", Use(LogMw).ThenFunc(a.findByPosition)).Queries(
 		"pos", "{pos:"+posRegex+"}").Methods("GET")
 
-	a.Router.HandleFunc("/building", a.findByPositionSplit).Queries(
+	a.Router.Handle("/building", Use(LogMw).ThenFunc(a.findByPositionSplit)).Queries(
 		"lon", "{lon:"+lonRegex+"}",
 		"lat", "{lat:"+latRegex+"}").Methods("GET")
 
-	a.Router.HandleFunc("/building", a.findByBbox).Queries(
+	a.Router.Handle("/building", Use(LogMw).ThenFunc(a.findByBbox)).Queries(
 		"bbox", "{bbox:"+bboxRegex+"}").Methods("GET")
 
-	a.Router.HandleFunc("/building", a.findByBboxSplit).Queries(
+	a.Router.Handle("/building", Use(LogMw).ThenFunc(a.findByBboxSplit)).Queries(
 		"lon_min", "{lon_min:"+lonRegex+"}",
 		"lat_min", "{lat_min:"+latRegex+"}",
 		"lon_max", "{lon_max:"+lonRegex+"}",
 		"lat_max", "{lat_max:"+latRegex+"}").Methods("GET")
 
-	a.Router.HandleFunc("/building", a.error(http.StatusBadRequest, "Requête invalide"))
+	a.Router.Handle("/building", Use(LogMw).ThenFunc(a.error(http.StatusBadRequest, "Requête invalide")))
 
 	a.Router.PathPrefix("/").HandlerFunc(a.error(http.StatusNotFound, "URL inconnue"))
 }

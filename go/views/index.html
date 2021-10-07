@@ -47,7 +47,7 @@
         currentListOfBuildings.forEach((el) => {
           var polygon = L.polygon(
             el.polygons.map((mp) => mp.map((p) => [p[1], p[0]])),
-            { color: "red" }
+            { color: "red", weight: 1 }
           );
           polygon.bindPopup(`${el.id}<br>${el.height}m<br>${el.state}<br>`);
           layerGroup.addLayer(polygon);

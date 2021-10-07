@@ -18,7 +18,6 @@ pip install -r requirements.txt
 ```
 
 # TODO
-- [X] Add a progress bar
-- [ ] Add the possibility to select the version of the parcellaire express
+- [X] Add a progress bar (please use --threads 1, not totally stable)
 - [ ] Add welcome data 
-- [ ] Add DB TOPO
+- [X] Add DB TOPO

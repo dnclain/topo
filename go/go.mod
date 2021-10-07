@@ -1,4 +1,4 @@
-module ignfab.ign.fr/api_bdtopov3_building
+module geosophy.io/api_bdtopov3_building
 
 go 1.16
 
