@@ -87,14 +87,13 @@ func Use(mws ...Middleware) Middleware {
 func LogMw(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_w := statusWriter{ResponseWriter: w}
-
 		next.ServeHTTP(&_w, r)
 		if _w.status >= 400 {
-			log.Println(formatLog("{} {} : {} < ❌ {}", r.Method, r.URL.String(), r.Form.Encode(), _w.status))
+			log.Println(formatLog("{} {} {} : {} > ❌ {}", r.RemoteAddr, r.Method, r.URL.String(), r.Form.Encode(), _w.status))
 
 			return
 		}
-		log.Println(formatLog("{} {} : {} < OK {}", r.Method, r.URL.String(), r.Form.Encode(), _w.status))
+		log.Println(formatLog("{} {} {} : {} > OK {}", r.RemoteAddr, r.Method, r.URL.String(), r.Form.Encode(), _w.status))
 	})
 }
 

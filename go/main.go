@@ -11,7 +11,7 @@ import (
 
 // main entry point.
 func main() {
-	log.Println("Star")
+	log.Println("Starting...")
 	fmt.Print("Loading .env : ")
 	err := godotenv.Load()
 	if err != nil {
