@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -9,15 +10,26 @@ import (
 	"github.com/joho/godotenv"
 )
 
+func init() {
+	log.Println("Initializing...")
+
+	_flagEnv := flag.String("env", "", "Select a .env file for specific configuration and env variable overload.")
+
+	flag.Parse()
+
+	if *_flagEnv != "" {
+		fmt.Printf("Loading .env : %s", *_flagEnv)
+		err := godotenv.Load(*_flagEnv)
+		if err != nil {
+			log.Fatal("Error loading .env file : ", *_flagEnv)
+		}
+		fmt.Println("✅")
+	}
+
+}
+
 // main entry point.
 func main() {
-	log.Println("Starting...")
-	fmt.Print("Loading .env : ")
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-	fmt.Println("✅")
 
 	fmt.Print("Database connection pool initialization : ")
 	initDB(os.Getenv("APP_DB_USERNAME"),

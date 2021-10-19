@@ -285,5 +285,7 @@ func getBuildingIntersects(db *sql.DB, pos string) (*geojson.FeatureCollection, 
 }
 
 func getBuildingBbox(db *sql.DB, bbox string) (*geojson.FeatureCollection, error) {
-	return getGeoJSON(db, fmt.Sprintf("SELECT id, nature, usage1, usage2, leger, etat, date_creat, date_maj, date_app, date_conf, source, id_source, prec_plani, prec_alti, nb_logts, nb_etages, mat_murs, mat_toits, hauteur,  z_min_sol, z_min_toit, z_max_toit, z_max_sol, origin_bat, app_ff, ST_AsGeoJSON(geom) FROM %s.building WHERE ST_Intersects(geom,ST_MakeEnvelope(%s,4326))", os.Getenv("APP_DB_SCHEMA"), bbox))
+	// expect a positive number or 'ALL'
+	_limit := os.Getenv("MAX_FEATURES")
+	return getGeoJSON(db, fmt.Sprintf("SELECT id, nature, usage1, usage2, leger, etat, date_creat, date_maj, date_app, date_conf, source, id_source, prec_plani, prec_alti, nb_logts, nb_etages, mat_murs, mat_toits, hauteur,  z_min_sol, z_min_toit, z_max_toit, z_max_sol, origin_bat, app_ff, ST_AsGeoJSON(geom) FROM %s.building WHERE ST_Intersects(geom,ST_MakeEnvelope(%s,4326)) LIMIT %s", os.Getenv("APP_DB_SCHEMA"), bbox, _limit))
 }

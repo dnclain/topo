@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -34,6 +35,19 @@ func formatLog(message string, ps ...interface{}) string {
 	}
 	return strings.Join(buf, "")
 }
+
+// --------------------
+// Connection context
+// --------------------
+
+// Global connecion pool
+var DB *sql.DB
+
+// Context Key : Connection
+type CtxKeyConnection struct{}
+
+// Context Key : Transaction
+type CtxKeyTransaction struct{}
 
 // --------------------
 // Http Tmux Goodies 😜
@@ -88,19 +102,43 @@ func LogMw(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_w := statusWriter{ResponseWriter: w}
 		next.ServeHTTP(&_w, r)
-		if _w.status >= 400 {
-			log.Println(formatLog("{} {} {} : {} > ❌ {}", r.RemoteAddr, r.Method, r.URL.String(), r.Form.Encode(), _w.status))
 
-			return
+		_statusText := "OK"
+		if _w.status >= 400 {
+			_statusText = "❌"
 		}
-		log.Println(formatLog("{} {} {} : {} > OK {}", r.RemoteAddr, r.Method, r.URL.String(), r.Form.Encode(), _w.status))
+		log.Println(formatLog("{} {} {} : {} > {} {}", r.RemoteAddr, r.Method, r.URL.String(), r.Form.Encode(), _statusText, _w.status))
 	})
 }
 
-// Global connecion pool
-var DB *sql.DB
+// CnxMw : Provides a connection in the context
+func CnxMw(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-// TrMw :
+		_con, _err := DB.Conn(r.Context())
+
+		if _err != nil {
+			fmt.Fprintf(w, "KO : %q", _err)
+			return
+		}
+
+		_ctx := context.Background()
+		_ctx = context.WithValue(_ctx, CtxKeyConnection{}, _con)
+
+		_rc := r.Clone(_ctx)
+		_w := statusWriter{ResponseWriter: w}
+
+		next.ServeHTTP(&_w, _rc)
+
+		_err = _con.Close()
+		if _err != nil {
+			fmt.Fprintf(w, "KO : %q", _err)
+		}
+
+	})
+}
+
+// TrMw : Provides a transaction in the context
 func TrMw(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -110,10 +148,28 @@ func TrMw(next http.Handler) http.Handler {
 			return
 		}
 
-		next.ServeHTTP(w, r)
+		_ctx := context.Background()
+		_ctx = context.WithValue(_ctx, CtxKeyTransaction{}, _tx)
 
-		// I expect the defered CloseDatabase to not commit if an error happen
+		_rc := r.Clone(_ctx)
+		_w := statusWriter{ResponseWriter: w}
+
+		next.ServeHTTP(&_w, _rc)
+
+		if _w.status >= 400 {
+			_err = _tx.Rollback()
+
+			if _err != nil {
+				fmt.Fprintf(w, "KO : %q", _err)
+				return
+			}
+
+			return
+		}
+
+		// I do not defer to not commit in case of error.
 		_tx.Commit()
+
 	})
 }
 
