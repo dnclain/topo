@@ -37,7 +37,7 @@ This api is eligible to a merge with [`parcellaire express`](https://github.com/
 
 ## Dev mode 
 
-Please reopen this project in a remote container from vscode.
+`TODO`: remote container for vscode.
 
 ## Credits
 - Thanks to [Geosophy](https://www.geosophy.io) for its support.
