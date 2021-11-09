@@ -17,8 +17,12 @@ RUN adduser \
     --ingroup "${GROUP}" \
     "${USER}"
 
+
 # Copie des scripts d'import de données 
-COPY --chown=importer:importer scripts/ /tmp/
+RUN mkdir /scripts/
+COPY --chown=importer:importer scripts/ /scripts/
+# To a volume, data is not updated after the first copy.
+RUN cp -v /scripts/* /tmp/.
 
 # Installation des dépendances
 RUN apt update && \
@@ -29,3 +33,4 @@ RUN pip3 install -r /tmp/requirements.txt
 # Configuration
 WORKDIR /tmp
 USER importer
+

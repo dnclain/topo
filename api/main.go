@@ -94,7 +94,7 @@ func main() {
 
 	a := App{}
 	a.Initialize(DB)
-	a.Run(":" + os.Getenv("APP_PORT"))
+	a.Run(":" + os.Getenv("API_PORT"))
 }
 
 // initDB creates a connection pool from identifiers.

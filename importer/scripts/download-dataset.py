@@ -98,14 +98,15 @@ def gen_url_downloader(out_dir: str) -> Callable[[str], str]:
             _chunk_size = 2**16
             tqdm.write("- 📥 🗺 %s : %s bytes" % (filename, _file_size))
             with open(out_file, 'wb') as f:
-                _i = 0
+                _total_dl = 0
                 with tqdm(total=_file_size, unit='B', unit_scale=True, unit_divisor=1024) as _bar:
                     for data in r.iter_content(chunk_size=_chunk_size):
                         f.write(data)
+                        _total_dl += len(data)
                         _bar.update(len(data))
         else:
             return "< ❌ %s failed" % filename
-        return "< 🎉 %s success (%s bytes) " % (filename, _i)
+        return "< 🎉 %s success (%s bytes) " % (filename, _total_dl)
     return download_url
 
 
