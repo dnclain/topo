@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	geojson "github.com/paulmach/go.geojson"
 )
@@ -276,16 +277,26 @@ func getGeoJSON(db *sql.DB, query string, args ...interface{}) (*geojson.Feature
 	return fc, nil
 }
 
+func bboxToPolygon(bbox string) string {
+	c := strings.Split(bbox, ",")
+	return fmt.Sprintf("POLYGON ((%[1]s %[2]s, %[1]s %[4]s, %[3]s %[4]s, %[3]s %[2]s, %[1]s %[2]s))", c[0], c[1], c[2], c[3])
+}
+
 func getBuilding(db *sql.DB, key, value string) (*geojson.FeatureCollection, error) {
-	return getGeoJSON(db, fmt.Sprintf("SELECT id, nature, usage1, usage2, leger, etat, date_creat, date_maj, date_app, date_conf, source, id_source, prec_plani, prec_alti, nb_logts, nb_etages, mat_murs, mat_toits, hauteur,  z_min_sol, z_min_toit, z_max_toit, z_max_sol, origin_bat, app_ff, ST_AsGeoJSON(geom) FROM %s.building WHERE %s=$1", os.Getenv("APP_DB_SCHEMA"), key), value)
+	return getGeoJSON(db, fmt.Sprintf("SELECT id, nature, usage1, usage2, leger, etat, date_creat, date_maj, date_app, date_conf, source, id_source, prec_plani, prec_alti, nb_logts, nb_etages, mat_murs, mat_toits, hauteur,  z_min_sol, z_min_toit, z_max_toit, z_max_sol, origin_bat, app_ff, ST_AsGeoJSON(geom) FROM %s.building WHERE %s=$1", os.Getenv(ENV_POSTGRES_SCHEMA), key), value)
 }
 
 func getBuildingIntersects(db *sql.DB, pos string) (*geojson.FeatureCollection, error) {
-	return getGeoJSON(db, fmt.Sprintf("SELECT id, nature, usage1, usage2, leger, etat, date_creat, date_maj, date_app, date_conf, source, id_source, prec_plani, prec_alti, nb_logts, nb_etages, mat_murs, mat_toits, hauteur,  z_min_sol, z_min_toit, z_max_toit, z_max_sol, origin_bat, app_ff, ST_AsGeoJSON(geom) FROM %s.building WHERE ST_Intersects(geom,ST_SetSRID(ST_MakePoint(%s),4326))", os.Getenv("APP_DB_SCHEMA"), pos))
+	return getGeoJSON(db, fmt.Sprintf("SELECT id, nature, usage1, usage2, leger, etat, date_creat, date_maj, date_app, date_conf, source, id_source, prec_plani, prec_alti, nb_logts, nb_etages, mat_murs, mat_toits, hauteur,  z_min_sol, z_min_toit, z_max_toit, z_max_sol, origin_bat, app_ff, ST_AsGeoJSON(geom) FROM %s.building WHERE ST_Intersects(geom,ST_SetSRID(ST_MakePoint(%s),4326))", os.Getenv(ENV_POSTGRES_SCHEMA), pos))
 }
 
 func getBuildingBbox(db *sql.DB, bbox string) (*geojson.FeatureCollection, error) {
-	// expect a positive number or 'ALL'
-	_limit := os.Getenv("MAX_FEATURES")
-	return getGeoJSON(db, fmt.Sprintf("SELECT id, nature, usage1, usage2, leger, etat, date_creat, date_maj, date_app, date_conf, source, id_source, prec_plani, prec_alti, nb_logts, nb_etages, mat_murs, mat_toits, hauteur,  z_min_sol, z_min_toit, z_max_toit, z_max_sol, origin_bat, app_ff, ST_AsGeoJSON(geom) FROM %s.building WHERE ST_Intersects(geom,ST_MakeEnvelope(%s,4326)) LIMIT %s", os.Getenv("APP_DB_SCHEMA"), bbox, _limit))
+	_sql := "SELECT id, nature, usage1, usage2, leger, etat, date_creat, date_maj, date_app, date_conf, source, id_source, prec_plani, prec_alti, nb_logts, nb_etages, mat_murs, mat_toits, hauteur,  z_min_sol, z_min_toit, z_max_toit, z_max_sol, origin_bat, app_ff, ST_AsGeoJSON(geom) FROM %s.building WHERE ST_Intersects(geom,ST_MakeEnvelope(%s,4326))"
+
+	_limiter := ""
+	if os.Getenv(ENV_MAX_FEATURE) != "0" {
+		_limiter = fmt.Sprintf(" LIMIT %s", os.Getenv(ENV_MAX_FEATURE))
+	}
+
+	return getGeoJSON(db, fmt.Sprintf(_sql+_limiter, os.Getenv(ENV_POSTGRES_SCHEMA), bboxToPolygon(bbox)))
 }

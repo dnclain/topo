@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -31,8 +32,8 @@ type App struct {
 	DB     *sql.DB
 }
 
-func (a *App) Initialize() {
-	a.DB = DB
+func (a *App) Initialize(mainDB *sql.DB) {
+	a.DB = mainDB
 	a.Router = mux.NewRouter()
 	a.initializeRoutes()
 }
@@ -107,31 +108,55 @@ func (a App) findByBboxSplit(w http.ResponseWriter, r *http.Request) {
 	respondWithAppropriate(w, parcelle, err)
 }
 
+func (a App) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	// TODO: Add database status information
+	respondWithJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
 func (a *App) initializeRoutes() {
 	// [STATIC]
-	// embedded
-	//a.Router.PathPrefix("/viewer/").Handler(http.StripPrefix("/static/", http.FileServer(assetFS()))).Methods("GET")
-	a.Router.PathPrefix("/viewer/").Handler(http.StripPrefix("/viewer/", http.FileServer(http.Dir("./views")))).Methods("GET")
+	theViewerUrl, isViewerUrldefined := os.LookupEnv("VIEWER_URL")
+	if isViewerUrldefined {
+		log.Printf("⭐️ Html viewer is enabled : %v", isViewerUrldefined)
+		// silent viewer route
+		// embedded
+		//a.Router.PathPrefix(theViewerUrl).Handler(http.StripPrefix(theViewerUrl, http.FileServer(assetFS()))).Methods("GET")
+		a.Router.PathPrefix(theViewerUrl).Handler(http.StripPrefix(theViewerUrl, http.FileServer(http.Dir("./views")))).Methods("GET")
+	}
 
-	a.Router.Handle("/building/{id:"+iduRegex+"}", Use(LogMw).ThenFunc(a.getById)).Methods("GET")
+	// silent route
+	a.Router.HandleFunc("/status", a.healthCheckHandler).Methods("GET")
 
-	a.Router.Handle("/building", Use(LogMw).ThenFunc(a.findByPosition)).Queries(
+	_mayBeSecured := a.Router.NewRoute().Subrouter()
+
+	_mayBeSecured.Use(LogMw)
+
+	if os.Getenv(ENV_API_KEY) != "" {
+		log.Printf("⭐️ Api key security is enabled")
+		_mayBeSecured.Use(AuthMw)
+	}
+
+	_mayBeSecured.HandleFunc("/building/{id:"+iduRegex+"}", a.getById).Methods("GET")
+
+	_mayBeSecured.HandleFunc("/building", a.findByPosition).Queries(
 		"pos", "{pos:"+posRegex+"}").Methods("GET")
 
-	a.Router.Handle("/building", Use(LogMw).ThenFunc(a.findByPositionSplit)).Queries(
+	_mayBeSecured.HandleFunc("/building", a.findByPositionSplit).Queries(
 		"lon", "{lon:"+lonRegex+"}",
 		"lat", "{lat:"+latRegex+"}").Methods("GET")
 
-	a.Router.Handle("/building", Use(LogMw).ThenFunc(a.findByBbox)).Queries(
+	_mayBeSecured.HandleFunc("/building", a.findByBbox).Queries(
 		"bbox", "{bbox:"+bboxRegex+"}").Methods("GET")
 
-	a.Router.Handle("/building", Use(LogMw).ThenFunc(a.findByBboxSplit)).Queries(
+	_mayBeSecured.HandleFunc("/building", a.findByBboxSplit).Queries(
 		"lon_min", "{lon_min:"+lonRegex+"}",
 		"lat_min", "{lat_min:"+latRegex+"}",
 		"lon_max", "{lon_max:"+lonRegex+"}",
 		"lat_max", "{lat_max:"+latRegex+"}").Methods("GET")
 
+	// handle no argument
 	a.Router.Handle("/building", Use(LogMw).ThenFunc(a.error(http.StatusBadRequest, "Requête invalide")))
 
+	// handle root path
 	a.Router.PathPrefix("/").HandlerFunc(a.error(http.StatusNotFound, "URL inconnue"))
 }

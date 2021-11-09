@@ -6,9 +6,8 @@ import sys
 import shutil
 import argparse
 from typing import Callable
-from progressbar.bar import DataTransferBar, ProgressBar
 import requests
-from progressbar import progressbar
+from tqdm import tqdm
 from multiprocessing.pool import ThreadPool
 # external
 from bs4 import BeautifulSoup
@@ -97,16 +96,13 @@ def gen_url_downloader(out_dir: str) -> Callable[[str], str]:
         if r.status_code == requests.codes.ok:
             _file_size = int(r.headers.get('Content-Length'))
             _chunk_size = 2**16
-            print("- 📥 🗺 %s : %s bytes" % (filename, _file_size))
+            tqdm.write("- 📥 🗺 %s : %s bytes" % (filename, _file_size))
             with open(out_file, 'wb') as f:
                 _i = 0
-                _bar = DataTransferBar(max_value=_file_size)
-                _bar.start()
-                for data in r.iter_content(chunk_size=_chunk_size):
-                    _i += len(data)
-                    f.write(data)
-                    _bar.update(_i)
-                _bar.finish()
+                with tqdm(total=_file_size, unit='B', unit_scale=True, unit_divisor=1024) as _bar:
+                    for data in r.iter_content(chunk_size=_chunk_size):
+                        f.write(data)
+                        _bar.update(len(data))
         else:
             return "< ❌ %s failed" % filename
         return "< 🎉 %s success (%s bytes) " % (filename, _i)
@@ -125,9 +121,37 @@ if __name__ == '__main__':
                          help="Number of simulteanous downloads (default: 1)")
 
     _args = _parser.parse_args()
+
+    _idx_url = URL
+    _out_dir: str = check_output(_args.output)
+    _threads: int = _args.threads
+
+    # Utilisation d'une autre URL de téléchargement que l'URL par défaut
+    if "DOWNLOAD_URL" in os.environ:
+        if os.environ['DOWNLOAD_URL'] != "":
+            _idx_url = os.environ['DOWNLOAD_URL']
+
+    # Utilisation d'un autre maximum de téléchargements en parallèle que celui par défaut
+    if "MAX_PARALLEL_DL" in os.environ:
+        if int(os.environ['MAX_PARALLEL_DL']) != 0:
+            _threads = int(os.environ['MAX_PARALLEL_DL'])
+        else:
+            print(
+                "🚧 new value of MAX_PARALLEL_DL is not in integer. Ignored.", file=sys.stderr)
+
     if _args.filter != '':
         print('Filtering %s' % _args.filter)
-    _found_links = filter_links(URL, only=_args.filter)
+    _found_links = filter_links(_idx_url, only=_args.filter)
+
+    # Pour un simple test on se limite à une seule archive
+    if "TEST_IMPORTER" in os.environ:
+        if int(os.environ['TEST_IMPORTER']) != 0:
+            print(
+                "🚨 Testing MODE. Only the first link will be downloaded.", file=sys.stderr)
+            _found_links = _found_links[:1]
+        else:
+            print(
+                "🚧 new value of TEST_IMPORTER is not in integer. Ignored.", file=sys.stderr)
 
     for i in _found_links:
         print(i)
@@ -138,9 +162,6 @@ if __name__ == '__main__':
     if _response_continue == 'n':
         print("❌ abort")
         sys.exit()
-
-    _out_dir: str = check_output(_args.output)
-    _threads: int = _args.threads
 
     print("✅ OK, let's Download...")
 
@@ -154,9 +175,9 @@ if __name__ == '__main__':
         gen_url_downloader(_out_dir), _found_links)
 
     for r in results:
-        sys.stdout.flush()
-        print(r)
+        # sys.stdout.flush()
+        tqdm.write(r)
     _pool.close()
     _pool.join()
 
-    print("🎉 All task done")
+    tqdm.write("🎉 All task done")

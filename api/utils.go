@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -53,6 +55,17 @@ type CtxKeyTransaction struct{}
 // Http Tmux Goodies 😜
 // --------------------
 
+type GeneralMessage struct {
+	Message string `json:"message"`
+	Error   bool   `json:"error"`
+	Literal string `json:"literal"`
+}
+
+type ContentMessage struct {
+	GeneralMessage
+	Payload interface{} `json:"data"`
+}
+
 // statusWriter wraps an http response.
 type statusWriter struct {
 	http.ResponseWriter
@@ -87,8 +100,21 @@ func (mw Middleware) ThenFunc(controller Controller) http.Handler {
 	return mw(http.HandlerFunc(controller))
 }
 
-// Use : create middleware handler.
+// Use : create middleware handlers chain.
 func Use(mws ...Middleware) Middleware {
+	_nmw := len(mws)
+
+	if _nmw == 0 {
+		log.Fatal("At least one middleware should be passed to Use()")
+	}
+
+	// reverse to execute middlware in declaration order.
+	if _nmw > 1 {
+		for i, j := 0, _nmw-1; i < j; i, j = i+1, j-1 {
+			mws[i], mws[j] = mws[j], mws[i]
+		}
+	}
+
 	return func(endPoint http.Handler) http.Handler {
 		for _, mw := range mws {
 			endPoint = mw(endPoint)
@@ -98,9 +124,15 @@ func Use(mws ...Middleware) Middleware {
 }
 
 // LogMw : Add logging to each controller
+// Should be first
 func LogMw(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_w := statusWriter{ResponseWriter: w}
+		// ensures response contains status.
+		_w, okType := w.(interface{}).(statusWriter)
+		if !okType {
+			_w = statusWriter{ResponseWriter: w}
+		}
+
 		next.ServeHTTP(&_w, r)
 
 		_statusText := "OK"
@@ -114,6 +146,11 @@ func LogMw(next http.Handler) http.Handler {
 // CnxMw : Provides a connection in the context
 func CnxMw(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// ensures response contains status.
+		_w, okType := w.(interface{}).(statusWriter)
+		if !okType {
+			_w = statusWriter{ResponseWriter: w}
+		}
 
 		_con, _err := DB.Conn(r.Context())
 
@@ -126,7 +163,6 @@ func CnxMw(next http.Handler) http.Handler {
 		_ctx = context.WithValue(_ctx, CtxKeyConnection{}, _con)
 
 		_rc := r.Clone(_ctx)
-		_w := statusWriter{ResponseWriter: w}
 
 		next.ServeHTTP(&_w, _rc)
 
@@ -141,6 +177,11 @@ func CnxMw(next http.Handler) http.Handler {
 // TrMw : Provides a transaction in the context
 func TrMw(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// ensures response contains status.
+		_w, okType := w.(interface{}).(statusWriter)
+		if !okType {
+			_w = statusWriter{ResponseWriter: w}
+		}
 
 		_tx, _err := DB.Begin()
 		if _err != nil {
@@ -152,7 +193,6 @@ func TrMw(next http.Handler) http.Handler {
 		_ctx = context.WithValue(_ctx, CtxKeyTransaction{}, _tx)
 
 		_rc := r.Clone(_ctx)
-		_w := statusWriter{ResponseWriter: w}
 
 		next.ServeHTTP(&_w, _rc)
 
@@ -174,3 +214,53 @@ func TrMw(next http.Handler) http.Handler {
 }
 
 // --------------------
+
+// AuthMw : Add Bearer/Token security to controller
+func AuthMw(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// ensures response contains status.
+		_w, okType := w.(interface{}).(statusWriter)
+		if !okType {
+			_w = statusWriter{ResponseWriter: w}
+		}
+
+		_auth := r.Header.Get("Authorization")
+
+		if _auth == "" {
+			_w.WriteHeader(http.StatusUnauthorized)
+			_err := json.NewEncoder(&_w).Encode(GeneralMessage{
+				Message: "requireAuthorization",
+				Error:   true,
+				Literal: "Please provides correct Authorization header",
+			})
+
+			if _err != nil {
+				log.Panicf("🚨 Sorry, cannot output unauthorized error message : %v\n", _err)
+			}
+
+			return
+		}
+
+		// Supports Bearer or Token api key.
+		_auth = strings.Replace(_auth, "Bearer ", "", 1)
+		_auth = strings.Replace(_auth, "Token ", "", 1)
+		_auth = strings.TrimSpace(_auth)
+
+		if _auth != os.Getenv(ENV_API_KEY) {
+			_w.WriteHeader(http.StatusForbidden)
+			_err := json.NewEncoder(&_w).Encode(GeneralMessage{
+				Message: "unknownToken",
+				Error:   true,
+				Literal: "The token is incorrect",
+			})
+
+			if _err != nil {
+				log.Panicf("🚨 Sorry, cannot output auth error message : %v\n", _err)
+			}
+
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}

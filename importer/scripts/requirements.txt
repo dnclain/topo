@@ -1,4 +1,4 @@
 beautifulsoup4
 requests
-progressbar2
+tqdm
 autopep8

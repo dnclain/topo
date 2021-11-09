@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -26,26 +28,77 @@ func init() {
 		fmt.Println("✅")
 	}
 
+	checkEnv()
+}
+
+// checkEnv ensures all necessary env data is present.
+// panic in case of missing env.
+// hide env vars with 'password', 'passwd' or 'key' in their name.
+func checkEnv() {
+	mandatoryEnvs := []string{
+		ENV_POSTGRES_USER, ENV_POSTGRES_PASSWORD, ENV_POSTGRES_DB,
+		ENV_POSTGRES_HOST, ENV_POSTGRES_PORT, ENV_API_PORT, ENV_POSTGRES_SCHEMA,
+		ENV_MAX_FEATURE}
+
+	reIsPassword := regexp.MustCompile(`(?i)password|passwd|key`)
+
+	for _, theEnvName := range mandatoryEnvs {
+		theEnv, isPresent := os.LookupEnv(theEnvName)
+		if !isPresent {
+			log.Fatalf("Sorry, env %v is mandatory. Please check environment variable or use --env <path> options\n", theEnvName)
+		}
+
+		if reIsPassword.MatchString(theEnvName) {
+			theEnv = fmt.Sprintf("**(%v)**", len(theEnv))
+		}
+
+		fmt.Printf("* %s : %s \n", theEnvName, theEnv)
+	}
+
+	optionalEnvs := []string{ENV_VIEWER_URL, ENV_API_KEY}
+
+	for _, theEnvName := range optionalEnvs {
+		theEnv, isPresent := os.LookupEnv(theEnvName)
+
+		if !isPresent {
+			theEnv = "<undefined>"
+		} else if reIsPassword.MatchString(theEnvName) {
+			theEnv = fmt.Sprintf("**(%v)**", len(theEnv))
+		}
+
+		fmt.Printf("# %s : %s \n", theEnvName, theEnv)
+	}
+
+	// checks the format
+	// TODO: replace by a more clever code.
+	_maxFeatureRaw := os.Getenv(ENV_MAX_FEATURE)
+	_maxFeature, err := strconv.Atoi(_maxFeatureRaw)
+	if err != nil {
+		log.Fatalf("%v should be a number but is '%v'\n", ENV_MAX_FEATURE, _maxFeatureRaw)
+	}
+	if _maxFeature < 0 {
+		log.Fatalf("%v should be positive but is %v", ENV_MAX_FEATURE, _maxFeature)
+	}
 }
 
 // main entry point.
 func main() {
 
 	fmt.Print("Database connection pool initialization : ")
-	initDB(os.Getenv("APP_DB_USERNAME"),
-		os.Getenv("APP_DB_PASSWORD"),
-		os.Getenv("APP_DB_NAME"),
-		os.Getenv("APP_DB_HOST"),
-		os.Getenv("APP_DB_PORT"))
+	DB := initDB(os.Getenv(ENV_POSTGRES_USER),
+		os.Getenv(ENV_POSTGRES_PASSWORD),
+		os.Getenv(ENV_POSTGRES_DB),
+		os.Getenv(ENV_POSTGRES_HOST),
+		os.Getenv(ENV_POSTGRES_PORT))
 	fmt.Println("✅")
 
 	a := App{}
-	a.Initialize()
+	a.Initialize(DB)
 	a.Run(":" + os.Getenv("APP_PORT"))
 }
 
 // initDB creates a connection pool from identifiers.
-func initDB(user, password, dbname, hostname, port string) {
+func initDB(user, password, dbname, hostname, port string) *sql.DB {
 	connectionString :=
 		fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=disable", user, password, dbname, hostname, port)
 
@@ -55,4 +108,5 @@ func initDB(user, password, dbname, hostname, port string) {
 		log.Fatal(err)
 	}
 
+	return DB
 }
