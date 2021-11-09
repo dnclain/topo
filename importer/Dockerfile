@@ -22,13 +22,22 @@ RUN adduser \
 RUN mkdir /scripts/
 COPY --chown=importer:importer scripts/ /scripts/
 # To a volume, data is not updated after the first copy.
-RUN cp -v /scripts/* /tmp/.
+# you have to delete the volume to import the new data, 
+# or copy/replace the data manually from /scripts/
+COPY --chown=importer:importer scripts/ /tmp/
 
 # Installation des dépendances
-RUN apt update && \
-    apt install -y python3-pip python3 p7zip* && \
-    apt install -y --no-install-recommends postgresql-client postgis
-RUN pip3 install -r /tmp/requirements.txt
+RUN set -ex \
+    && EXEC_DEPS=" \
+    python3-pip \
+    python3 \
+    p7zip* \
+    postgresql-client \
+    postgis \
+    " \
+    && apt update && apt install -y --no-install-recommends $EXEC_DEPS \
+    && pip3 install --no-cache-dir  -r /scripts/requirements.txt \
+    && rm -rf /var/lib/apt/lists/*  
 
 # Configuration
 WORKDIR /tmp
