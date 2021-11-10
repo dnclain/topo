@@ -72,7 +72,7 @@ for f in *.7z; do
     echo "- Deleting temporary folder"
     rm -rf $xdir
     # delete the archive
-    if [[$KEEP_FILES = "NO"]]
+    if [[ $KEEP_FILES -eq "NO" ]]
     then
         echo "- Deleting the archive"
         rm -rf $f
