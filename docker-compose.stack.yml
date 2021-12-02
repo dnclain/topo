@@ -1,0 +1,62 @@
+version: "3.8"
+
+#####
+# ⭐️ This file is not independent :
+## 🟢 Docker-compose DEV mode, starts with
+# $ docker-compose -f docker-compose.common.yml -f docker-compose.dev.yml [build|up -d|down]
+# OR
+# $ docker-compose docker-compose.common.yml -f docker-compose.dev.yml config > docker-compose.yml
+# $ docker-compose [build|up -d|down]
+## 🟢 Docker-compose STACK mode, starts with
+# $ docker login <registry_url>
+# $ docker-compose -f docker-compose.common.yml -f docker-compose.stack.yml config > docker-stack.yml
+# $ docker stack deploy parcellaire -c docker-stack.yml --with-registry-auth
+#####
+
+# 🪧 Some information on this file : 
+# See : https://docs.docker.com/compose/compose-file/compose-file-v3/
+
+services:
+  topo-importer:
+    volumes:
+      #- importer-data:/tmp
+      - /data/topo/importer:/tmp
+    networks:
+      - traefik-public      
+    command: /bin/bash /scripts/keepalive.sh
+
+  topo-postgis:
+    # Ouverture de port pour test si nécessaire
+    #ports:
+    #  - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+    networks:
+      - traefik-public
+    volumes:
+      #- topo-postgis-data:/var/lib/postgresql/data
+      # 🚨 Please change the owner of /data/topo/postgresql to 999:999 first.
+      - /data/topo/postgresql:/var/lib/postgresql/data
+
+  topo-api:
+    #ports:
+    #  - "${API_PORT}:${API_PORT}"
+    networks:
+      - traefik-public
+    deploy:
+      labels:
+      - "traefik.enable=true"
+      - "traefik.port=${API_PORT}"
+      - "traefik.frontend.rule=Host:${STACK_FRONTEND_DNS}"
+      - "traefik.frontend.entryPoints=http,https"
+      - "traefik.docker.network=traefik-public"
+
+# Uncomment this if you want to use volume instead of binded directories.
+#volumes:
+#  topo-postgis-data:
+#    name: topo-postgis-data
+#  topo-importer-data:
+#    name: topo-importer-data
+
+networks:
+  traefik-public:
+    external: true
+    name: traefik-public

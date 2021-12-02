@@ -33,7 +33,7 @@ This api is eligible to a merge with [`parcellaire express`](https://github.com/
 
     `docker-compose down`
     OR
-    `docker-compose down -v` to destroy the dataset.
+    `docker-compose down -v` to destroy the dataset (only if the data are in volumes)
 
 ## Routes
 

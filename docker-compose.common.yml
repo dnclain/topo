@@ -1,10 +1,24 @@
 version: "3.8"
 
+#####
+# ⭐️ This file is not independent :
+## 🟢 Docker-compose DEV mode, starts with
+# $ docker-compose -f docker-compose.common.yml -f docker-compose.dev.yml [build|up -d|down]
+# OR
+# $ docker-compose docker-compose.common.yml -f docker-compose.dev.yml config > docker-compose.yml
+# $ docker-compose [build|up -d|down]
+## 🟢 Docker-compose STACK mode, starts with
+# $ docker login <registry_url>
+# $ docker-compose -f docker-compose.common.yml -f docker-compose.stack.yml config > docker-stack.yml
+# $ docker stack deploy topo -c docker-stack.yml --with-registry-auth
+#####
+
+# 🪧 Some information on this file : 
+# See : https://docs.docker.com/compose/compose-file/compose-file-v3/
+
 services:
   topo-importer:
-    container_name: topo-importer-ctr
-    build:
-      context: ./importer
+    image: ${STACK_IMAGE_IMPORTER:-topo-importer:latest}
     environment:
       - POSTGRES_USER
       - POSTGRES_PASSWORD
@@ -15,27 +29,15 @@ services:
       - DOWNLOAD_URL
       - TEST_IMPORTER
       - MAX_PARALLEL_DL
-    volumes:
-      - topo-importer-data:/tmp
 
   topo-postgis:
-    container_name: topo-postgis-ctr
-    build:
-      context: ./postgis
-      args:
-        - POSTGRES_VERSION
-        - POSTGIS_VERSION
+    image: ${STACK_IMAGE_POSTGIS:-topo-postgis:latest}  
     environment:
       - POSTGRES_DB
       - POSTGRES_USER
       - POSTGRES_PORT
       - POSTGRES_PASSWORD
       - POSTGRES_SCHEMA
-    # Ouverture de port pour test si nécessaire
-    #ports:
-    #  - "${POSTGRES_PORT}:${POSTGRES_PORT}"
-    volumes:
-      - topo-postgis-data:/var/lib/postgresql/data
     # Options de configuration issues de PGTune (https://pgtune.leopard.in.ua)
     # Valeurs par défaut pour une instance Hetzner CPX21
     command:
@@ -59,7 +61,7 @@ services:
       - "-c"
       - "effective_io_concurrency=200"
       - "-c"
-      - "work_mem=2621kB"
+      - "work_mem=5242kB"
       - "-c"
       - "min_wal_size=1GB"
       - "-c"
@@ -72,7 +74,9 @@ services:
       - "max_parallel_workers=3"
       - "-c"
       - "max_parallel_maintenance_workers=2"
-    shm_size: 2g
+      # To log every requests
+      # - "-c"
+      # - "log_statement=all"      
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
       interval: 1m
@@ -80,22 +84,8 @@ services:
       retries: 5
       start_period: 10s
 
-  # Accès à la base via un front web pour contrôle si nécessaire
-  #topo-adminer:
-  #    container_name: topo-adminer-ctr
-  #    image: adminer
-  #    ports:
-  #        - "8080:8080"
-  #    environment:
-  #       - ADMINER_DEFAULT_SERVER=topo-postgis
-  #       - ADMINER_DESIGN=hydra
-
   topo-api:
-    container_name: topo-api-ctr
-    build:
-      context: ./api
-      args:
-        - api_port=${API_PORT}
+    image: ${STACK_IMAGE_API:-topo-api:latest}  
     environment:
       - POSTGRES_USER
       - POSTGRES_PASSWORD
@@ -107,8 +97,6 @@ services:
       - API_KEY
       - MAX_FEATURE
       - VIEWER_URL
-    ports:
-      - "${API_PORT}:${API_PORT}"
     healthcheck:
       test:
         [
@@ -120,8 +108,3 @@ services:
       retries: 5
       start_period: 10s
 
-volumes:
-  topo-postgis-data:
-    name: topo-postgis-data
-  topo-importer-data:
-    name: topo-importer-data

@@ -1,6 +1,14 @@
+# Python env
 ign-env
+# Downloaded content
 topo-express
-.DS_Store
-.env
 # executable
 api_bdtopov3_building
+# Local configuration
+.env
+docker-compose.yml
+docker-stack.yml
+# Annoying Macos poo 💩
+.DS_Store
+# Temp files
+*.swp

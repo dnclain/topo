@@ -1,0 +1,70 @@
+version: "3.8"
+
+#####
+# ⭐️ This file is not independent :
+## 🟢 Docker-compose DEV mode, starts with
+# $ docker-compose -f docker-compose.common.yml -f docker-compose.dev.yml [build|up -d|down]
+# OR
+# $ docker-compose docker-compose.common.yml -f docker-compose.dev.yml config > docker-compose.yml
+# $ docker-compose [build|up -d|down]
+#####
+
+# 🪧 Some information on this file : 
+# See : https://docs.docker.com/compose/compose-file/compose-file-v3/
+
+services:
+  topo-importer:
+    container_name: topo-importer-ctr
+    build:
+      context: ./importer
+    volumes:
+      - topo-importer-data:/tmp
+
+  topo-postgis:
+    container_name: topo-postgis-ctr
+    build:
+      context: ./postgis
+      args:
+        - POSTGRES_VERSION
+        - POSTGIS_VERSION
+    # Ouverture de port pour test si nécessaire
+    #ports:
+    #  - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+    shm_size: 2g
+    volumes:
+      - topo-postgis-data:/var/lib/postgresql/data
+
+  # Accès à la base via un front web pour contrôle si nécessaire
+  #topo-adminer:
+  #    container_name: topo-adminer-ctr
+  #    image: adminer
+  #    ports:
+  #        - "8080:8080"
+  #    environment:
+  #       - ADMINER_DEFAULT_SERVER=topo-postgis
+  #       - ADMINER_DESIGN=hydra
+
+  topo-api:
+    container_name: topo-api-ctr
+    build:
+      context: ./api
+      args:
+        - api_port=${API_PORT}
+    ports:
+      - "${API_PORT}:${API_PORT}"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost:${API_PORT}/status || exit 1",
+        ]
+      interval: 1m
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  topo-postgis-data:
+    name: topo-postgis-data
+  topo-importer-data:
+    name: topo-importer-data
