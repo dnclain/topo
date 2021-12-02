@@ -51,7 +51,7 @@ This api is eligible to a merge with [`parcellaire express`](https://github.com/
 
 ### Stack/traefik (=production) environment
 
-1. Copy .env.example to .env. Change to values that suit the production needs.
+1. Copy `.env.example` to `.env`. Change to values that suit the production environment.
 2. Ensure `docker-compose` is installed : [Installation guide](https://docs.docker.com/compose/install/)
 3. Generate `docker-stack.yml` file
 
