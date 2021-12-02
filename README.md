@@ -35,9 +35,9 @@ This api is eligible to a merge with [`parcellaire express`](https://github.com/
 
 7. Import the dataset
     * Download
-        `docker-compose run topo-importer python3 /tmp/download-dataset.py`
+        `docker-compose run -ti topo-importer python3 /tmp/download-dataset.py`
     * Import
-        `docker-compose run topo-importer bash /tmp/import-data.sh`
+        `docker-compose run -ti topo-importer bash /tmp/import-data.sh`
 
 8. Use the api
     * Use the viewer with the url defined by VIEWER_URL
@@ -73,11 +73,11 @@ This api is eligible to a merge with [`parcellaire express`](https://github.com/
 6. Import the dataset
     * Download
   
-      `docker exec parcellaire_parcellaire-importer.XXXXX python3 /tmp/download-dataset.py`
+      `docker exec -ti topo_topo-importer.XXXXX python3 /tmp/download-dataset.py`
 
     * Import
 
-      `docker exec pacellaire_parcellaire-importer.XXXXX /bin/bash /tmp/import-data.sh`
+      `docker exec -ti topo_topo-importer.XXXXX /bin/bash /tmp/import-data.sh`
 
 
 7. Use the api
