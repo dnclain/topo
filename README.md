@@ -98,6 +98,12 @@ This api is eligible to a merge with [`parcellaire express`](https://github.com/
 * **GET** `/building?bbox={bbox}` *ou* `/building?lon_min={lon}&lat_min={lat}&lon_max={lon}&lat_max={lat}` : Find the buildings that intersect with a bounding box expressed in geographic coordinates (WGS84)
   * Exemple : http://localhost:8010/building?bbox=5.2135,44.5719,5.2709,44.6247
 
+⭐️ When the api is protected by an API Key, please provide an Authorization Header like this:
+    
+    `Authorization: Bearer <api_key>`
+    OR
+    `Authorization: Token <api_key>`
+
 ### Formats
 
 #### Parameters
