@@ -9,31 +9,85 @@ This api is eligible to a merge with [`parcellaire express`](https://github.com/
 
 ## Instructions
 
+### Dev environement
+
 1. Copy .env.example to .env. Change to values that suit your needs.
-2. Tune you postgres with [pgtunes](https://pgtune.leopard.in.ua/#/) and update `docker-composer.yml` with the new values
-3. Build images
+2. Generate `docker-compose.yml` file
+
+    `docker-compose -f docker-compose.common.yml -f docker-compose.dev.yml config > docker-compose.yml`
+
+3. Tune you postgres with [pgtunes](https://pgtune.leopard.in.ua/#/) and update `docker-composer.yml` with the new values
+
+4. Build images
 
     `docker-compose build`
 
-4. Turn on the services
+5. Eventually push the images to a registry for the stack environment.
+
+    ```bash
+    docker login <registry>
+    docker-compose push
+    ```
+
+6. Turn on the services
 
     `docker-compose up` OR `docker-compose up -d` to start in the background.
 
-5. Import the dataset
+7. Import the dataset
     * Download
         `docker-compose run topo-importer python3 /tmp/download-dataset.py`
     * Import
         `docker-compose run topo-importer bash /tmp/import-data.sh`
 
-6. Use the api
+8. Use the api
     * Use the viewer with the url defined by VIEWER_URL
     * Use the routes defined below
 
-7. Turn off the services
+9.  Turn off the services
 
     `docker-compose down`
     OR
     `docker-compose down -v` to destroy the dataset (only if the data are in volumes)
+
+### Stack/traefik (=production) environment
+
+1. Copy .env.example to .env. Change to values that suit the production needs.
+2. Ensure `docker-compose` is installed : [Installation guide](https://docs.docker.com/compose/install/)
+3. Generate `docker-stack.yml` file
+
+    `docker-compose -f docker-compose.common.yml -f docker-compose.stack.yml config > docker-stack.yml`
+
+4. Tune you postgres with [pgtunes](https://pgtune.leopard.in.ua/#/) and update `docker-stack.yml` with the new values
+
+5. Turn on the services
+
+    ```bash
+    # Deploy
+    docker stack deploy topo -c docker-stack.yml --with-registry-auth
+    # Check 
+    docker stack ps --no-trunc
+    # Service reference 
+    docker service ls
+    ```    
+
+6. Import the dataset
+    * Download
+  
+      `docker exec parcellaire_parcellaire-importer.XXXXX python3 /tmp/download-dataset.py`
+
+    * Import
+
+      `docker exec pacellaire_parcellaire-importer.XXXXX /bin/bash /tmp/import-data.sh`
+
+
+7. Use the api
+    * Use the viewer with the url defined by VIEWER_URL
+    * Use the routes defined below
+
+8.  Turn off the services
+
+    `docker stack rm topo`
+
 
 ## Routes
 
