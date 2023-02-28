@@ -14,7 +14,7 @@ import (
 
 const (
 	// identifiant de BATIMENT
-	iduRegex = "[0-9A-Z]{24}"
+	idRegex = "[0-9A-Z]{24}"
 	// nombre décimal
 	decimalRegex = "(?:\\.[0-9]+)?"
 	// -180..180
@@ -39,6 +39,7 @@ func (a *App) Initialize(mainDB *sql.DB) {
 }
 
 func (a *App) Run(addr string) {
+
 	log.Fatal(http.ListenAndServe(addr, a.Router))
 }
 
@@ -74,8 +75,8 @@ func (a App) error(code int, message string) func(http.ResponseWriter, *http.Req
 
 func (a *App) getById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	cleabs := vars["idu"]
-	building, err := getBuilding(a.DB, "idu", cleabs)
+	cleabs := vars["id"]
+	building, err := getBuilding(a.DB, "id", cleabs)
 	respondWithAppropriate(w, building, err)
 }
 
@@ -136,7 +137,7 @@ func (a *App) initializeRoutes() {
 		_mayBeSecured.Use(AuthMw)
 	}
 
-	_mayBeSecured.HandleFunc("/building/{id:"+iduRegex+"}", a.getById).Methods("GET")
+	_mayBeSecured.HandleFunc("/building/{id:"+idRegex+"}", a.getById).Methods("GET")
 
 	_mayBeSecured.HandleFunc("/building", a.findByPosition).Queries(
 		"pos", "{pos:"+posRegex+"}").Methods("GET")
